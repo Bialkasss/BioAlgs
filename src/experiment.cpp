@@ -3,32 +3,34 @@
 #include "rng.h"
 #include "solution.h"
 #include <cmath>
+#include "heuristic.h"
 
 ExperimentResults run_experiment(const QAPInstance& inst, uint64_t base_seed) {
     ExperimentResults res = {0};
-
-    // 1. Allocate the memory pool for exactly 2 solutions
     SolutionPool pool;
-    alloc_pool(pool, inst.n, 2);
+    alloc_pool(pool, inst.n, 2); // Still only need 2 slots
 
     Solution current, best;
     pool_get(pool, 0, current);
     pool_get(pool, 1, best);
-
     RNG rng = make_rng(base_seed);
 
-    // 2. "Calibration" run: Time one run of Greedy
+    // 1. Calibration and standard algorithms
     res.greedy = run_greedy(inst, current, best, rng);
     res.budget_ms = res.greedy.time_ms;
-
-    // Safety net for extremely small instances
     if (res.budget_ms < 1.0) res.budget_ms = 1.0; 
 
-    // 4. Run the remaining algorithms
     res.steepest = run_steepest(inst, current, best, rng);
     res.rs = run_random_search(inst, current, best, rng, res.budget_ms);
     res.rw = run_random_walk(inst, current, best, rng, res.budget_ms);
+    res.opt3 = run_3opt_greedy(inst, current, best, rng);
+    res.vns = run_vns(inst, current, best, rng, res.budget_ms);
 
+    // 2. Added: Run Heuristic H inside the experiment
+    // We use the 'current' solution slot as a workspace
+    res.heuristic = run_heuristic(inst, best, rng, res.budget_ms);
+    res.reverse = run_greedy_reverse(inst, current, best, rng);
+    
     free_pool(pool);
     return res;
 }
@@ -77,7 +79,7 @@ void run_scatter_experiment(const QAPInstance& inst, int scatter_runs, uint64_t 
 }
 
 void write_similarity_header(FILE* csv) {
-    fprintf(csv, "Instance,QualityGap,SimToOpt,SimToOther\n");
+    fprintf(csv, "Instance,Cost,QualityGap,SimToOpt,SimToOther\n");
 }
 
 static double calc_similarity(const int* p1, const int* p2, int n) {
@@ -123,8 +125,9 @@ void run_similarity_experiment(const QAPInstance& inst, int similarity_runs, uin
             sim_to_others /= (similarity_runs - 1);
         }
         
-        fprintf(csv, "%s,%.4f,%.4f,%.4f\n", inst.name, quality_gap, sim_to_opt, sim_to_others);
-    }
+        fprintf(csv, "%s,%lld,%.4f,%.4f,%.4f\n", 
+        inst.name, sol_i.cost, quality_gap, sim_to_opt, sim_to_others);
+        }
     
     free_pool(pool);
 }

@@ -26,9 +26,9 @@ RunResult run_random_walk  (const QAPInstance& inst, Solution& current,
                             Solution& best, RNG& rng, double budget_ms);
 
 // Non-deterministic heuristic — greedy construction with ties broken randomly
-RunResult run_heuristic    (const QAPInstance& inst, Solution& out,
-                            RNG& rng);
+RunResult run_heuristic(const QAPInstance& inst, Solution& best, RNG& rng, double budget_ms);
 
 // ADd other neigh
 RunResult run_3opt_greedy(const QAPInstance& inst, Solution& current, Solution& best, RNG& rng);
 RunResult run_vns(const QAPInstance& inst, Solution& current, Solution& best, RNG& rng, double budget_ms);
+RunResult run_greedy_reverse(const QAPInstance& inst, Solution& current, Solution& best, RNG& rng);

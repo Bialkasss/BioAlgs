@@ -130,15 +130,32 @@ RunResult run_random_walk(const QAPInstance& inst, Solution& current, Solution& 
     return res;
 }
 
-RunResult run_heuristic(const QAPInstance& inst, Solution& out, RNG& rng) {
+
+RunResult run_heuristic(const QAPInstance& inst, Solution& best, RNG& rng, double budget_ms) {
     auto start = std::chrono::high_resolution_clock::now();
     RunResult res = {0};
+    
+    // Workspace solution (avoiding repeated malloc in a loop)
+    Solution current;
+    current.perm = (int*)malloc(inst.n * sizeof(int));
+    current.cost = 0;
 
-    greedy_construct(out, inst, rng);
-    res.init_cost = out.cost;
-    res.cost = out.cost;
-    res.evals = 1;
+    // Use a do-while loop to guarantee at least ONE execution
+    do {
+        greedy_construct(current, inst, rng);
+        res.evals++;
 
+        // On the first run, or if we find a better cost
+        if (res.evals == 1 || current.cost < best.cost) {
+            if (res.evals == 1) res.init_cost = current.cost;
+            best.copy_from(current);
+            res.steps++; 
+        }
+
+    } while (get_time_ms(start) < budget_ms);
+
+    free(current.perm);
+    res.cost = best.cost;
     res.time_ms = get_time_ms(start);
     return res;
 }
@@ -249,6 +266,33 @@ RunResult run_vns(const QAPInstance& inst, Solution& current, Solution& best, RN
         }
     }
 
+    res.cost = best.cost;
+    res.time_ms = get_time_ms(start);
+    return res;
+}
+
+RunResult run_greedy_reverse(const QAPInstance& inst, Solution& current, Solution& best, RNG& rng) {
+    auto start = std::chrono::high_resolution_clock::now();
+    RunResult res = {0};
+    init_random(current, inst, rng);
+    res.init_cost = current.cost;
+
+    bool improved = true;
+    while (improved) {
+        improved = false;
+        for (int i = 0; i < inst.n - 1 && !improved; i++) {
+            for (int j = i + 1; j < inst.n && !improved; j++) {
+                res.evals++;
+                long long delta = reverse_delta(inst, current.perm, i, j);
+                if (delta < 0) {
+                    apply_reverse(current, i, j, delta);
+                    res.steps++;
+                    improved = true;
+                }
+            }
+        }
+    }
+    best.copy_from(current);
     res.cost = best.cost;
     res.time_ms = get_time_ms(start);
     return res;

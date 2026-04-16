@@ -8,8 +8,12 @@ struct ExperimentResults {
     double budget_ms;
     RunResult greedy;
     RunResult steepest;
-    RunResult rs;  // Random Search
-    RunResult rw;  // Random Walk
+    RunResult rs;
+    RunResult rw;
+    RunResult opt3; // New: 3-opt
+    RunResult vns;  // New: VNS
+    RunResult heuristic;
+    RunResult reverse;
 };
 
 // Main experiment runner

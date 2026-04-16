@@ -33,3 +33,45 @@ inline void apply_swap(Solution& sol, int i, int j, long long delta) {
 inline int neighborhood_size(int n) {
     return n * (n - 1) / 2;
 }
+// Reverses the segment of the permutation between indices i and j (inclusive)
+inline void apply_reverse(Solution& sol, int i, int j, long long delta) {
+    while (i < j) {
+        int tmp = sol.perm[i];
+        sol.perm[i] = sol.perm[j];
+        sol.perm[j] = tmp;
+        i++; j--;
+    }
+    sol.cost += delta;
+}
+
+// Calculate delta for reversing segment [start, end]
+// O(k * n) complexity where k = end - start + 1
+inline long long reverse_delta(const QAPInstance& inst, const int* perm, int start, int end) {
+    long long delta = 0;
+    int n = inst.n;
+    
+    // Create a temporary copy of the affected range to find new positions
+    // In a high-perf solver, you'd use a stack buffer or pool slot here.
+    for (int a = start; a <= end; ++a) {
+        int old_loc = perm[a];
+        int new_loc = perm[end - (a - start)];
+        
+        // Change in contribution of facility 'a' to all other facilities 'b'
+        for (int b = 0; b < n; ++b) {
+            if (a == b) continue;
+            int loc_b = perm[b];
+            
+            // If b is also in the reversed range, we must use its future position
+            if (b >= start && b <= end) {
+                loc_b = perm[end - (b - start)];
+                // Avoid double-counting pairs within the range
+                if (a > b) continue; 
+            }
+            
+            delta += (long long)inst.F(a, b) * (inst.D(new_loc, loc_b) - inst.D(old_loc, perm[b]));
+            // Add reverse flow if asymmetric (though your core is symmetric)
+            delta += (long long)inst.F(b, a) * (inst.D(loc_b, new_loc) - inst.D(perm[b], old_loc));
+        }
+    }
+    return delta;
+}

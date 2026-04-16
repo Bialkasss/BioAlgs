@@ -71,10 +71,19 @@ int main() {
             // Print only the first run to keep the console readable
             if (run == 0) {
                 printf("  [Run 1] time budget: %.2f ms\n", res.budget_ms);
-                print_run_result(name, "G",  inst.opt_cost, res.greedy);
-                print_run_result(name, "S",  inst.opt_cost, res.steepest);
-                print_run_result(name, "RS", inst.opt_cost, res.rs);
-                print_run_result(name, "RW", inst.opt_cost, res.rw);
+                // 2. Print Local Search results
+                print_run_result(name, "G",   inst.opt_cost, res.greedy);
+                print_run_result(name, "S",   inst.opt_cost, res.steepest);
+                print_run_result(name, "3O",  inst.opt_cost, res.opt3);
+
+                // 3. Print Metaheuristic and Random results
+                print_run_result(name, "VNS", inst.opt_cost, res.vns);
+                print_run_result(name, "RS",  inst.opt_cost, res.rs);
+                print_run_result(name, "RW",  inst.opt_cost, res.rw);
+
+                // 4. Print the Heuristic construction result
+                print_run_result(name, "H",   inst.opt_cost, res.heuristic);
+                
             }
 
             // Write all 10 runs to the CSV for statistical evaluation
@@ -83,6 +92,10 @@ int main() {
                 write_csv_rows(csv_main, name, run, "S",  inst.opt_cost, res.steepest);
                 write_csv_rows(csv_main, name, run, "RS", inst.opt_cost, res.rs);
                 write_csv_rows(csv_main, name, run, "RW", inst.opt_cost, res.rw);
+                write_csv_rows(csv_main, name, run, "H", inst.opt_cost, res.heuristic);
+                write_csv_rows(csv_main, name, run, "3O",  inst.opt_cost, res.opt3); // New
+                write_csv_rows(csv_main, name, run, "VNS", inst.opt_cost, res.vns);  // New
+                write_csv_rows(csv_main, name, run, "REV", inst.opt_cost, res.reverse);    
             }
         }
 
