@@ -17,7 +17,7 @@ ExperimentResults run_experiment(const QAPInstance& inst, uint64_t base_seed);
 
 // Output helpers expected by main.cpp
 void write_csv_header(FILE* csv);
-void write_csv_rows(FILE* csv, const char* name, const char* algo, long long opt_cost, const RunResult& res);
+void write_csv_rows(FILE* csv, const char* name, int run, const char* algo, long long opt_cost, const RunResult& res);
 void print_run_result(const char* name, const char* algo, long long opt_cost, const RunResult& res);
 
 void write_scatter_header(FILE* csv);

@@ -44,6 +44,6 @@ inline void init_identity(Solution& sol, const QAPInstance& inst) {
 // Initialize solution with a random permutation
 inline void init_random(Solution& sol, const QAPInstance& inst, RNG& rng) {
     for (int i = 0; i < inst.n; i++) sol.perm[i] = i;
-    shuffle_perm(sol.perm, inst.n, rng); // FIXED: Removed "rng." prefix
+    shuffle_perm(sol.perm, inst.n, rng);
     sol.cost = full_cost(inst, sol.perm);
 }

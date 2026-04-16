@@ -11,7 +11,8 @@ static const char* INSTANCE_NAMES[] = {
     "tai64c",
     "tai12a",
     "tai20a",
-    "tai256c",
+    // "tai256c",  
+    "sko81",
 };
 static const int N_INSTANCES = 8;
 
@@ -61,26 +62,35 @@ int main() {
 
         // Use instance index as base seed for reproducibility
         uint64_t base_seed = 0xABCDEF01ULL + (uint64_t)k * 999983ULL;
-        ExperimentResults res = run_experiment(inst, base_seed);
+        
+        printf("  Running main experiment (10 runs)...\n");
+        for (int run = 0; run < 10; run++) {
+            uint64_t run_seed = base_seed + run * 12345ULL;
+            ExperimentResults res = run_experiment(inst, run_seed);
 
-        printf("  time budget: %.2f ms\n", res.budget_ms);
-        print_run_result(name, "G",  inst.opt_cost, res.greedy);
-        print_run_result(name, "S",  inst.opt_cost, res.steepest);
-        print_run_result(name, "RS", inst.opt_cost, res.rs);
-        print_run_result(name, "RW", inst.opt_cost, res.rw);
+            // Print only the first run to keep the console readable
+            if (run == 0) {
+                printf("  [Run 1] time budget: %.2f ms\n", res.budget_ms);
+                print_run_result(name, "G",  inst.opt_cost, res.greedy);
+                print_run_result(name, "S",  inst.opt_cost, res.steepest);
+                print_run_result(name, "RS", inst.opt_cost, res.rs);
+                print_run_result(name, "RW", inst.opt_cost, res.rw);
+            }
 
-        if (csv_main) {
-            write_csv_rows(csv_main, name, "G",  inst.opt_cost, res.greedy);
-            write_csv_rows(csv_main, name, "S",  inst.opt_cost, res.steepest);
-            write_csv_rows(csv_main, name, "RS", inst.opt_cost, res.rs);
-            write_csv_rows(csv_main, name, "RW", inst.opt_cost, res.rw);
+            // Write all 10 runs to the CSV for statistical evaluation
+            if (csv_main) {
+                write_csv_rows(csv_main, name, run, "G",  inst.opt_cost, res.greedy);
+                write_csv_rows(csv_main, name, run, "S",  inst.opt_cost, res.steepest);
+                write_csv_rows(csv_main, name, run, "RS", inst.opt_cost, res.rs);
+                write_csv_rows(csv_main, name, run, "RW", inst.opt_cost, res.rw);
+            }
         }
 
-        // 2. Scatter Experiment (e.g., 400 runs)
+        // 2. Scatter Experiment (400 runs)
         printf("  Running scatter experiment (400 runs)...\n");
         if (csv_scatter) run_scatter_experiment(inst, 400, base_seed + 1, csv_scatter);
 
-        // 3. Similarity Experiment (e.g., 100 runs)
+        // 3. Similarity Experiment (100 runs)
         printf("  Running similarity experiment (100 runs)...\n");
         if (csv_sim) run_similarity_experiment(inst, 100, base_seed + 2, csv_sim);
 

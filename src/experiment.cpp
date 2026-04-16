@@ -18,39 +18,30 @@ ExperimentResults run_experiment(const QAPInstance& inst, uint64_t base_seed) {
     RNG rng = make_rng(base_seed);
 
     // 2. "Calibration" run: Time one run of Greedy
-    // (std::chrono::high_resolution_clock is already used inside run_greedy)
     res.greedy = run_greedy(inst, current, best, rng);
-
-    // 3. Set the budget dynamically based on Greedy's wall-clock time
     res.budget_ms = res.greedy.time_ms;
 
-    // Safety net: For extremely small instances (e.g., n=12), Greedy might 
-    // finish in a fraction of a millisecond. We ensure a minimum budget of 1ms 
-    // so the while-loops in RS/RW don't instantly terminate.
-    if (res.budget_ms < 1.0) {
-        res.budget_ms = 1.0; 
-    }
+    // Safety net for extremely small instances
+    if (res.budget_ms < 1.0) res.budget_ms = 1.0; 
 
     // 4. Run the remaining algorithms
     res.steepest = run_steepest(inst, current, best, rng);
-    
-    // Pass the dynamically calculated budget_ms to the random algorithms
     res.rs = run_random_search(inst, current, best, rng, res.budget_ms);
     res.rw = run_random_walk(inst, current, best, rng, res.budget_ms);
 
-    // 5. Clean up
     free_pool(pool);
-    
     return res;
 }
 
+// UPDATE: Added 'Run' to header
 void write_csv_header(FILE* csv) {
-    fprintf(csv, "Instance,Algo,OptCost,InitCost,FinalCost,TimeMS,Steps,Evals\n");
+    fprintf(csv, "Instance,Run,Algo,OptCost,InitCost,FinalCost,TimeMS,Steps,Evals\n");
 }
 
-void write_csv_rows(FILE* csv, const char* name, const char* algo, long long opt_cost, const RunResult& res) {
-    fprintf(csv, "%s,%s,%lld,%lld,%lld,%.2f,%lld,%lld\n",
-            name, algo, opt_cost, res.init_cost, res.cost, res.time_ms, res.steps, res.evals);
+// UPDATE: Added 'run_id' parameter
+void write_csv_rows(FILE* csv, const char* name, int run_id, const char* algo, long long opt_cost, const RunResult& res) {
+    fprintf(csv, "%s,%d,%s,%lld,%lld,%lld,%.2f,%lld,%lld\n",
+            name, run_id, algo, opt_cost, res.init_cost, res.cost, res.time_ms, res.steps, res.evals);
 }
 
 void print_run_result(const char* name, const char* algo, long long opt_cost, const RunResult& res) {
@@ -59,8 +50,9 @@ void print_run_result(const char* name, const char* algo, long long opt_cost, co
            algo, res.cost, gap, res.time_ms, res.steps, res.evals);
 }
 
+// UPDATE: Added 'Run' to scatter header
 void write_scatter_header(FILE* csv) {
-    fprintf(csv, "Instance,Algo,InitCost,FinalCost\n");
+    fprintf(csv, "Instance,Run,Algo,InitCost,FinalCost\n");
 }
 
 void run_scatter_experiment(const QAPInstance& inst, int scatter_runs, uint64_t base_seed, FILE* csv) {
@@ -73,21 +65,21 @@ void run_scatter_experiment(const QAPInstance& inst, int scatter_runs, uint64_t 
 
     for (int i = 0; i < scatter_runs; i++) {
         RunResult res_g = run_greedy(inst, current, best, rng);
-        fprintf(csv, "%s,G,%lld,%lld\n", inst.name, res_g.init_cost, res_g.cost);
+        // UPDATE: Print the run index 'i'
+        fprintf(csv, "%s,%d,G,%lld,%lld\n", inst.name, i, res_g.init_cost, res_g.cost);
         
         RunResult res_s = run_steepest(inst, current, best, rng);
-        fprintf(csv, "%s,S,%lld,%lld\n", inst.name, res_s.init_cost, res_s.cost);
+        // UPDATE: Print the run index 'i'
+        fprintf(csv, "%s,%d,S,%lld,%lld\n", inst.name, i, res_s.init_cost, res_s.cost);
     }
     
     free_pool(pool);
 }
 
-
 void write_similarity_header(FILE* csv) {
     fprintf(csv, "Instance,QualityGap,SimToOpt,SimToOther\n");
 }
 
-// Helper function to calculate fraction of matching positions
 static double calc_similarity(const int* p1, const int* p2, int n) {
     int matches = 0;
     for (int i = 0; i < n; i++) {
@@ -98,7 +90,6 @@ static double calc_similarity(const int* p1, const int* p2, int n) {
 
 void run_similarity_experiment(const QAPInstance& inst, int similarity_runs, uint64_t base_seed, FILE* csv) {
     SolutionPool pool;
-    // Allocate space for all runs, plus 2 working slots
     alloc_pool(pool, inst.n, similarity_runs + 2); 
     
     Solution current, best;
@@ -107,7 +98,6 @@ void run_similarity_experiment(const QAPInstance& inst, int similarity_runs, uin
     
     RNG rng = make_rng(base_seed);
 
-    // 1. Run Steepest Descent N times and save the local optima
     for (int i = 0; i < similarity_runs; i++) {
         Solution sol_i;
         pool_get(pool, i, sol_i);
@@ -115,18 +105,13 @@ void run_similarity_experiment(const QAPInstance& inst, int similarity_runs, uin
         sol_i.copy_from(best); 
     }
 
-    // 2. Calculate landscape metrics for each local optimum
     for (int i = 0; i < similarity_runs; i++) {
         Solution sol_i;
         pool_get(pool, i, sol_i);
         
-        // Gap %
         double quality_gap = 100.0 * (sol_i.cost - inst.opt_cost) / (double)inst.opt_cost;
-        
-        // Similarity to known global optimum
         double sim_to_opt = calc_similarity(sol_i.perm, inst.opt_perm, inst.n);
         
-        // Average similarity to all other local optima found
         double sim_to_others = 0;
         for (int j = 0; j < similarity_runs; j++) {
             if (i == j) continue;

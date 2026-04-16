@@ -1,77 +1,65 @@
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
-import os
+import matplotlib.pyplot as plt
 
-# Create output directory for plots
-os.makedirs("plots", exist_ok=True)
+# 1. Load the data
+df = pd.read_csv('../results/results.csv')
 
-def main():
-    # Load data
-    df = pd.read_csv("../results/results.csv")
-    
-    # Calculate derived metrics
-    # Gap % = (Final - Opt) / Opt * 100
-    df['QualityGap'] = 100.0 * (df['FinalCost'] - df['OptCost']) / df['OptCost']
-    
-    # Efficiency = Quality Improvement / Time
-    # Justification for report: Measures how much cost reduction is achieved per millisecond of compute.
-    df['Improvement'] = df['InitCost'] - df['FinalCost']
-    df['Efficiency'] = df['Improvement'] / df['TimeMS']
+# 2. Pre-processing & Feature Engineering
+# Calculate Quality Improvement for Efficiency
+df['Improvement'] = df['InitCost'] - df['FinalCost']
+# Efficiency = Improvement / Time (Handling division by zero just in case)
+df['Efficiency'] = df['Improvement'] / df['TimeMS'].replace(0, 1)
 
-    # Set visual style
-    sns.set_theme(style="whitegrid")
+# Map instances to sizes for sorting
+n_map = {
+    "chr12a": 12, "nug12": 12, "tai12a": 12, 
+    "chr15a": 15, "nug15": 15, "tai20a": 20, 
+    "tai64c": 64, "sko81": 81, "tai256c": 256
+}
+df['n'] = df['Instance'].map(n_map)
+df = df.sort_values(by='n')
 
-    # 1. Quality (% above optimum) Box Plot
-    plt.figure(figsize=(10, 6))
-    sns.boxplot(data=df, x='Instance', y='QualityGap', hue='Algo')
-    plt.title("Solution Quality Gap (% above Optimum)")
-    plt.ylabel("Gap (%)")
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig("plots/quality_gap_boxplot.png")
-    plt.close()
+# Set aesthetic style
+sns.set_style("whitegrid")
+palette = 'bright'
 
-    # 2. Runtime comparison (Average + Std Dev)
-    plt.figure(figsize=(10, 6))
-    sns.barplot(data=df, x='Instance', y='TimeMS', hue='Algo', capsize=.1, errorbar='sd')
-    plt.title("Runtime Comparison (Avg ± Std Dev)")
-    plt.ylabel("Time (ms)")
-    plt.yscale("log") # Log scale is often better if instances vary wildly in size
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig("plots/runtime_comparison.png")
-    plt.close()
+# --- PLOT 1: RUNTIME ---
+plt.figure(figsize=(10, 6))
+sns.lineplot(data=df, x='Instance', y='TimeMS', hue='Algo', marker='o', errorbar='sd', palette=palette)
+plt.title('Algorithm Runtime vs. Instance Size', fontsize=14)
+plt.ylabel('Runtime (ms)')
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.savefig('../results/plot_runtime.png')
 
-    # 3. Efficiency Box Plot
-    plt.figure(figsize=(10, 6))
-    sns.boxplot(data=df, x='Instance', y='Efficiency', hue='Algo')
-    plt.title("Search Efficiency (Cost Improvement / ms)")
-    plt.ylabel("Efficiency")
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig("plots/efficiency_boxplot.png")
-    plt.close()
+# --- PLOT 2: EFFICIENCY ---
+plt.figure(figsize=(10, 6))
+sns.lineplot(data=df, x='Instance', y='Efficiency', hue='Algo', marker='o', errorbar='sd', palette=palette)
+plt.title('Search Efficiency (Cost Improvement / ms)', fontsize=14)
+plt.ylabel('Efficiency')
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.savefig('../results/plot_efficiency.png')
 
-    # 4. Steps and Evals for G and S
-    # Filter for only Greedy and Steepest
-    df_gs = df[df['Algo'].isin(['G', 'S'])]
-    
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-    
-    sns.boxplot(data=df_gs, x='Instance', y='Steps', hue='Algo', ax=axes[0])
-    axes[0].set_title("Improving Moves (Steps)")
-    axes[0].tick_params(axis='x', rotation=45)
-    
-    sns.boxplot(data=df_gs, x='Instance', y='Evals', hue='Algo', ax=axes[1])
-    axes[1].set_title("Total Delta Evaluations")
-    axes[1].tick_params(axis='x', rotation=45)
-    
-    plt.tight_layout()
-    plt.savefig("plots/steps_and_evals.png")
-    plt.close()
+# --- PLOT 3: ALGORITHM STEPS (G & S Only) ---
+plt.figure(figsize=(10, 6))
+gs_df = df[df['Algo'].isin(['G', 'S'])]
+sns.lineplot(data=gs_df, x='Instance', y='Steps', hue='Algo', marker='o', errorbar='sd', palette=['blue', 'red'])
+plt.title('Number of Improving Steps (Local Search Only)', fontsize=14)
+plt.ylabel('Steps')
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.savefig('../results/plot_steps.png')
 
-    print("Successfully generated plots.py outputs in the /plots directory.")
+# --- PLOT 4: SOLUTION EVALUATIONS ---
+plt.figure(figsize=(10, 6))
+sns.lineplot(data=df, x='Instance', y='Evals', hue='Algo', marker='o', errorbar='sd', palette=palette)
+plt.title('Total Delta Evaluations (Search Effort)', fontsize=14)
+plt.ylabel('Number of Evaluations')
+plt.yscale('log') # Log scale is often better here as Evals grow very fast with N
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.savefig('../results/plot_evals.png')
 
-if __name__ == "__main__":
-    main()
+print("All plots generated successfully in ../results/")

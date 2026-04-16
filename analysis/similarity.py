@@ -1,45 +1,61 @@
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
-import os
+import matplotlib.pyplot as plt
+from scipy.stats import pearsonr
 
-os.makedirs("plots", exist_ok=True)
+# 1. Load the similarity experiment data
+# Columns: Instance, QualityGap, SimToOpt, SimToOther
+df = pd.read_csv('../results/similarity_results.csv')
 
-def main():
-    # Load similarity data. 
-    # Assumed columns: Instance, QualityGap, SimToOpt, SimToOther
-    df = pd.read_csv("../results/similarity_results.csv")
-    sns.set_theme(style="whitegrid")
+# Instances to analyze
+instances = ['sko81', 'tai64c']
+
+sns.set_style("whitegrid")
+
+for inst in instances:
+    inst_df = df[df['Instance'] == inst]
     
-    instances = df['Instance'].unique()
-    
-    for inst in instances:
-        subset = df[df['Instance'] == inst]
-        
-        plt.figure(figsize=(10, 6))
-        
-        # Plot Similarity to Optimum
-        sns.scatterplot(data=subset, x='QualityGap', y='SimToOpt', 
-                        label='Similarity to Optimum', alpha=0.7, marker='o')
-        
-        # Plot Average Similarity to other local optima
-        sns.scatterplot(data=subset, x='QualityGap', y='SimToOther', 
-                        label='Avg Similarity to Others', alpha=0.7, marker='x')
-        
-        plt.title(f"Fitness Landscape Analysis | {inst}")
-        plt.xlabel("Quality Gap (% above optimum) -> Closer to 0 is better")
-        plt.ylabel("Similarity Metric (e.g., matching edges/positions)")
-        
-        # Invert X axis so better solutions (0 gap) are on the right, 
-        # which makes landscape funnels visually intuitive.
-        plt.gca().invert_xaxis() 
-        
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(f"plots/similarity_{inst}.png")
-        plt.close()
-        
-    print("Successfully generated similarity landscape plots.")
+    if inst_df.empty:
+        continue
 
-if __name__ == "__main__":
-    main()
+    plt.figure(figsize=(10, 8))
+    
+    # 2. Scatter Plot: Quality Gap vs. Similarity to Global Optimum
+    sns.regplot(
+        data=inst_df, x='QualityGap', y='SimToOpt', 
+        label='Similarity to Optimum', scatter_kws={'alpha':0.6}, color='royalblue'
+    )
+    
+    # 3. Scatter Plot: Quality Gap vs. Average Similarity to Others
+    sns.regplot(
+        data=inst_df, x='QualityGap', y='SimToOther', 
+        label='Avg Similarity to Others', scatter_kws={'alpha':0.6}, color='orange', marker='s'
+    )
+
+    # 4. Calculate Correlations (r)
+    r_opt, _ = pearsonr(inst_df['QualityGap'], inst_df['SimToOpt'])
+    r_other, _ = pearsonr(inst_df['QualityGap'], inst_df['SimToOther'])
+    
+    stats_text = (
+        f"Instance: {inst}\n"
+        f"r (Quality vs SimToOpt): {r_opt:.4f}\n"
+        f"r (Quality vs AvgSimilarity): {r_other:.4f}"
+    )
+
+    # Annotate plot
+    plt.text(0.05, 0.05, stats_text, transform=plt.gca().transAxes, 
+             fontsize=12, verticalalignment='bottom', 
+             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+    # 5. Formatting
+    plt.title(f'Fitness-Similarity Analysis: {inst}', fontsize=16)
+    plt.xlabel('Quality Gap (%) - Lower is Better', fontsize=12)
+    plt.ylabel('Similarity (Fraction of matching positions)', fontsize=12)
+    plt.legend(loc='upper right')
+    plt.tight_layout()
+
+    # Save output files
+    plt.savefig(f'../results/similarity_{inst}.png', dpi=300)
+    plt.close()
+
+print("Similarity Analysis plots generated successfully.")
